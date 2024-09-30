@@ -1,0 +1,34 @@
+import requests
+
+API_KEY = 'AIzaSyCwOrAmMIIFJW7wgXlo1u8UYwcjw7FYfuk' 
+
+def get_store_locations (query, location, radius=20000):
+    url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={location}&radius={radius}&keyword={query}&key={API_KEY}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        results = response.json().get('results', [])
+        stores = []
+
+        for place in results:
+            name = place.get("name")
+            address = place.get ('vicinity')
+            lat = place['geometry']['location']['lat']
+            lng = place['geometry']['location']['lng']
+            stores.append({'name': name, 'address': address, 'lat':lat, 'lng': lng})
+        return stores
+    else:
+        return "fail"
+
+location = "43.458493203719186, -80.51667084996238"
+dollar_general_stores = get_store_locations('Dollar General', location)
+dollar_tree_stores = get_store_locations('Dollar General', location)
+print("Dollar General Stores:")
+for store in dollar_general_stores:
+    print(store)
+
+print("Dollar Tree Stores:")
+for store in dollar_tree_stores:
+    print(store)
+
+
+
