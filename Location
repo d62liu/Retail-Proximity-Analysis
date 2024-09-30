@@ -1,31 +1,31 @@
 import requests
 from geopy.distance import geodesic
 
-API_KEY = 'AIzaSyCwOrAmMIIFJW7wgXlo1u8UYwcjw7FYfuk' 
+API_KEY = 'AIzaSyCwOrAmMIIFJW7wgXlo1u8UYwcjw7FYfuk'
 
-def get_store_locations (query, location, radius=20000):
+def get_store_locations(query, location, radius=40000):
     url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={location}&radius={radius}&keyword={query}&key={API_KEY}"
     response = requests.get(url)
     if response.status_code == 200:
         results = response.json().get('results', [])
         stores = []
-
         for place in results:
             name = place.get("name")
-            address = place.get ('vicinity')
+            address = place.get('vicinity')
             lat = place['geometry']['location']['lat']
             lng = place['geometry']['location']['lng']
-            stores.append({'name': name, 'address': address, 'lat':lat, 'lng': lng})
+            stores.append({'name': name, 'address': address, 'lat': lat, 'lng': lng})
         return stores
-
     else:
-        return "fail"
+        return []
+
 total_dollar_general = 0
 total_dollar_tree = 0
 
 location = "43.458493203719186, -80.51667084996238"
 dollar_general_stores = get_store_locations('Dollar General', location)
-dollar_tree_stores = get_store_locations('Dollar General', location)
+dollar_tree_stores = get_store_locations('Dollar Tree', location)
+
 print("Dollar General Stores:")
 for store in dollar_general_stores:
     total_dollar_general += 1
@@ -33,29 +33,24 @@ for store in dollar_general_stores:
 
 print("Dollar Tree Stores:")
 for store in dollar_tree_stores:
-    total_dollar_general += 1
+    total_dollar_tree += 1
     print(store)
 
 def calculate_distance(coord1, coord2):
     return geodesic(coord1, coord2).kilometers
 
-def find_nearby_stores (general_stores, target_stores, radius = 1):
-    for dollar_general in general_stores:
-        general_coord = (general_stores['lat'], general_stores['lng'])
-        nearby_stores = 0
-
+def find_nearby_stores(base_stores, target_stores, radius=30):
+    nearby_stores = 0
+    for base_store in base_stores:
+        base_coord = (base_store['lat'], base_store['lng'])
         for target_store in target_stores:
             target_coord = (target_store['lat'], target_store['lng'])
-            distance = calculate_distance(general_coord, target_coord)
+            distance = calculate_distance(base_coord, target_coord)
             if distance <= radius:
                 nearby_stores += 1
-    print("dollar general has"+nearby_stores+" dollar tree within a radius of "+radius+"km")
-find_nearby_stores(dollar_general_stores, dollar_tree_stores, radius = 1)
+    return nearby_stores
 
+num_of_tree_near_general = find_nearby_stores(dollar_general_stores, dollar_tree_stores, radius=30)
+avg_num_near_general = num_of_tree_near_general / total_dollar_general if total_dollar_general > 0 else 0
 
-
-    
-
-
-
-
+print(f"On average, Dollar General has {avg_num_near_general:.2f} Dollar Tree stores within a radius of 30 km")
