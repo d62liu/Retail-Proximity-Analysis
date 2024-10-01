@@ -1,29 +1,46 @@
 import requests
 from geopy.distance import geodesic
 
-API_KEY = 'AIzaSyCwOrAmMIIFJW7wgXlo1u8UYwcjw7FYfuk'
+API_KEY = 'YOUR_API_KEY'  # Replace with your actual API key
 
-def get_store_locations(store_name, location, radius=60000, exclude_keywords=None):
+def get_store_locations(store_name, location, radius=50000, exclude_keywords=None):
     exclude_keywords = exclude_keywords or []
-    url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={location}&radius={radius}&name={store_name}&key={API_KEY}"
-    response = requests.get(url)
+    stores = []
+    url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={location}&radius={radius}&keyword={store_name}&key={API_KEY}"
     
-    if response.status_code == 200:
-        results = response.json().get('results', [])
-        stores = []
-        for place in results:
-            name = place.get("name")
-            address = place.get('vicinity')
-            lat = place['geometry']['location']['lat']
-            lng = place['geometry']['location']['lng']
-            
-            if not any(keyword.lower() in name.lower() for keyword in exclude_keywords):
-                stores.append({'name': name, 'address': address, 'lat': lat, 'lng': lng})
-        return stores
-    else:
-        return []
+    while url:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            status = data.get('status')
+            if status == 'OK' or status == 'ZERO_RESULTS':
+                results = data.get('results', [])
+                for place in results:
+                    name = place.get("name")
+                    address = place.get('vicinity')
+                    lat = place['geometry']['location']['lat']
+                    lng = place['geometry']['location']['lng']
+                    
+                    if not any(keyword.lower() in name.lower() for keyword in exclude_keywords):
+                        stores.append({'name': name, 'address': address, 'lat': lat, 'lng': lng})
+                # Check for next_page_token
+                next_page_token = data.get('next_page_token')
+                if next_page_token:
+                    import time
+                    # Google recommends waiting for 2 seconds before using the next_page_token
+                    time.sleep(2)
+                    url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken={next_page_token}&key={API_KEY}"
+                else:
+                    url = None  # No more pages
+            else:
+                print(f"API Error: {status}")
+                break
+        else:
+            print(f"HTTP Error: {response.status_code}")
+            break
+    return stores
 
-location = "32.458493203719186, -99.51667084996238"
+location = "33.813887257561774, -84.71285909999541"
 exclude_keywords = ['walmart pharmacy', 'walmart grocery pickup', 'walmart garden centre', 'pharmacy', 'garden']
 
 dollar_general_stores = get_store_locations('Dollar General', location, exclude_keywords=['dollar tree', 'dollarama'])
@@ -36,22 +53,17 @@ target_stores = get_store_locations('Target', location, exclude_keywords=exclude
 print("Dollar General Stores:")
 total_dollar_general = len(dollar_general_stores)
 
-
 print("Dollar Tree Stores:")
 total_dollar_tree = len(dollar_tree_stores)
-
 
 print("Dollarama Stores:")
 total_dollarama = len(dollarama_stores)
 
-
 print("Walmart Stores:")
 total_walmart = len(walmart_stores)
 
-
 print("Walmart Supercentre Stores:")
 total_sup_walmart = len(walmart_sup_stores)
-
 
 print("Target Stores:")
 total_target = len(target_stores)
@@ -59,7 +71,7 @@ total_target = len(target_stores)
 def calculate_distance(coord1, coord2):
     return geodesic(coord1, coord2).kilometers
 
-def find_nearby_stores(base_stores, target_stores, radius=30):
+def find_nearby_stores(base_stores, target_stores, radius=2.5):
     nearby_stores = 0
     for base_store in base_stores:
         base_coord = (base_store['lat'], base_store['lng'])
@@ -77,16 +89,16 @@ total_nearby = 0
 atleast1 = 0
 atleast2 = 0
 atleast3 = 0
-
+r = 2.5
 for store in dollar_general_stores:
     count_nearby = (
-        find_nearby_stores([store], dollar_tree_stores, radius=2)
-        + find_nearby_stores([store], dollarama_stores, radius=2)
-        + find_nearby_stores([store], walmart_stores, radius=2)
-        + find_nearby_stores([store], walmart_sup_stores, radius=2)  
-        + find_nearby_stores([store], target_stores, radius=2)
+        find_nearby_stores([store], dollar_tree_stores, radius=r)
+        + find_nearby_stores([store], dollarama_stores, radius=r)
+        + find_nearby_stores([store], walmart_stores, radius=r)
+        + find_nearby_stores([store], walmart_sup_stores, radius=r)  
+        + find_nearby_stores([store], target_stores, radius=r)
     )
-    print(f"Store Name: {store['name']}, Address: {store['address']}, Latitude: {store['lat']}, Longitude: {store['lng']}, Number of competitors within 1km: {count_nearby}")
+    print(f"Store Name: {store['name']}, Address: {store['address']}, Latitude: {store['lat']}, Longitude: {store['lng']}, Number of competitors within {r} km: {count_nearby}")
     
     if count_nearby >= 1:
         atleast1 += 1
@@ -104,4 +116,11 @@ for store in dollar_general_stores:
         three += 1
 
 avg_num_near_general = total_nearby / total_dollar_general if total_dollar_general > 0 else 0
-print(f"In this area there were a total of {total_dollar_general} Stores. Dollar General has {avg_num_near_general:.4f} competitor stores within a radius of 1 km. {atleast1 / total_dollar_general * 100:.4f}% of dollar generals have at least 1 competitor within 1km, {atleast2 / total_dollar_general * 100:.4f}% of dollar generals have at least 2 competitors within 1km, and {atleast3 / total_dollar_general * 100:.4f}% of dollar generals have at least 3 competitors.")
+if total_dollar_general == 0:
+    print("No Dollar Generals in this area")
+else:
+    print(f"In this area, there were a total of {total_dollar_general} Dollar General Stores.")
+    print(f"On average, each Dollar General has {avg_num_near_general:.4f} competitor stores within a radius of {r} km.")
+    print(f"{(atleast1 / total_dollar_general * 100):.4f}% of Dollar Generals have at least 1 competitor within {r} km,")
+    print(f"{(atleast2 / total_dollar_general * 100):.4f}% have at least 2 competitors,")
+    print(f"and {(atleast3 / total_dollar_general * 100):.4f}% have at least 3 competitors.")
