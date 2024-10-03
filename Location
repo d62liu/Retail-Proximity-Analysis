@@ -1,7 +1,7 @@
 import requests
 from geopy.distance import geodesic
 
-API_KEY = 'AIzaSyCwOrAmMIIFJW7wgXlo1u8UYwcjw7FYfuk' 
+API_KEY = 'xx' 
 
 def get_store_locations(store_name, location, radius=50000, exclude_keywords=None):
     exclude_keywords = exclude_keywords or []
